@@ -76,6 +76,11 @@ class FunctionSpace:
         return P
 
     def eval_derivative_basis_function_all(self, Xj, k=1):
+        P = np.zeros((len(Xj), self.N+1))
+        for j in range(self.N+1):
+            P[:, j] = self.evaluate_derivative_basis_function(Xj, j, k=1)
+        return P
+        
         raise NotImplementedError
 
     def inner_product(self, u):
@@ -107,10 +112,22 @@ class Legendre(FunctionSpace):
 
     def derivative_basis_function(self, j, k=1):
         return self.basis_function(j).deriv(k)
-
+    @property
+    def reference_domain(self):
+        return (-1, 1)
     def L2_norm_sq(self, N):
-        raise NotImplementedError
+        r = self.reference_domain
+        L2_norms_sq = np.zeros(N + 1)
+        
+        for i in range(N + 1):
+            psi = self.basis_function(i)
+            def integrand(x):
+                return psi(x) ** 2
+            L2_norms_sq[i] = quad(integrand, float(r[0]), float(r[1]))[0]
+        return L2_norms_sq
 
+        raise NotImplementedError
+    
     def mass_matrix(self):
         raise NotImplementedError
 
