@@ -129,6 +129,10 @@ class Legendre(FunctionSpace):
         raise NotImplementedError
     
     def mass_matrix(self):
+        L2_norms_sq= self.L2_norm_sq(self.N)
+        A= sparse.diags(L2_norms_sq, [0], (self.N + 1, self.N + 1), format='csr')
+        return A
+    
         raise NotImplementedError
 
     def eval(self, uh, xj):
@@ -154,9 +158,23 @@ class Chebyshev(FunctionSpace):
         return 1/sp.sqrt(1-x**2)
 
     def L2_norm_sq(self, N):
+        r = self.reference_domain
+        L2_norms_sq = np.zeros(N + 1)
+        
+        for i in range(N + 1):
+            Tk = self.basis_function(i)
+            def integrand(x):
+                return Tk(x) ** 2 / np.sqrt(1 - x**2)
+            L2_norms_sq[i] = quad(integrand, float(r[0]), float(r[1]))[0]
+        return L2_norms_sq
+
         raise NotImplementedError
 
     def mass_matrix(self):
+        L2_norms_sq= self.L2_norm_sq(self.N)
+        A= sparse.diags(L2_norms_sq, [0], (self.N + 1, self.N + 1), format='csr')
+        return A
+
         raise NotImplementedError
 
     def eval(self, uh, xj):
@@ -222,15 +240,30 @@ class Sines(Trigonometric):
 class Cosines(Trigonometric):
 
     def __init__(self, N, domain=(0, 1), bc=(0, 0)):
+        Trigonometric.__init__(self, N, domain=domain)
+        self.B = Dirichlet(bc, domain, self.reference_domain)
+
         raise NotImplementedError
 
     def basis_function(self, j, sympy=False):
+        if sympy:
+            return sp.cos((j+1)*sp.pi*x)
+        return lambda Xj: np.cos((j+1)*np.pi*Xj)
+
         raise NotImplementedError
 
     def derivative_basis_function(self, j, k=1):
+        scale = ((j+1)*np.pi)**k * {0: 1, 1: -1}[(k//2) % 2]
+        if k % 2 == 0:
+           return lambda Xj: scale*np.cos((j+1)*np.pi*Xj)
+        else:
+            return lambda Xj: scale*np.sin((j+1)*np.pi*Xj)
+            
+        
         raise NotImplementedError
 
     def L2_norm_sq(self, N):
+        return 0.5
         raise NotImplementedError
 
 # Create classes to hold the boundary function
@@ -306,6 +339,9 @@ class DirichletLegendre(Composite, Legendre):
         self.S = sparse.diags((1, -1), (0, 2), shape=(N+1, N+3), format='csr')
 
     def basis_function(self, j, sympy=False):
+        if sympy:
+            return sp.legendre(j, x) - sp.legendre(j+2, x)
+        return Leg.basis(j) - Leg.basis(j+2)
         raise NotImplementedError
 
 
